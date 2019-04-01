@@ -1,0 +1,51 @@
+
+version: "3.3"
+services:
+  web:
+    image: garnermccloud/web-dd-example
+    command: ddtrace-run python app.py
+    ports:
+     - "8080:5000"
+    volumes:
+     - log:/var/log
+     - confd:/conf.d/
+    depends_on:
+     - redis
+    environment:
+      DATADOG_STATSD_HOST: dogstatsd
+      DATADOG_TRACE_AGENT_HOSTNAME: dogstatsd-apm
+      DD_LOGS_INJECTION: true
+      DATADOG_SERVICE_NAME: redis-flask-app
+  redis:
+    image: redis
+  # agent section (need 1 of each since containers can only expose 1 port on Azure app services)
+  dogstatsd:
+    image: datadog/docker-dd-agent:latest-dogstatsd # can change to full agent as well
+    # depends_on:
+    #  - redis # ensures that redis is a host that the container can find
+    #  - web # ensures that the web app can send metrics
+    volumes:
+     - log:/var/log/hello_world:ro
+    ports:
+     - "0:8125"
+    environment:
+      NON_LOCAL_TRAFFIC: true
+      DD_APM_ENABLED: false
+      DATADOG_TAGS: "app:redis-flask-app,deployment:app_services,name:garner,env:azure_demo"
+  dogstatsd-apm:
+    image: datadog/docker-dd-agent:latest-dogstatsd
+    # depends_on:
+    #  - redis # ensures that redis is a host that the container can find
+    #  - web # ensures that the web app can send metrics
+    volumes:
+     - log:/var/log/hello_world:ro
+    ports:
+     - "0:8126"
+    environment:
+      NON_LOCAL_TRAFFIC: true
+      DD_APM_ENABLED: true
+      DATADOG_TAGS: "app:redis-flask-app,deployment:app_services,name:garner,env:azure_demo"
+
+volumes:
+  log:
+  confd:
